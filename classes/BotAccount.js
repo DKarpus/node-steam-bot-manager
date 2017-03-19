@@ -692,7 +692,7 @@ BotAccount.prototype.hasPhone = function (callback) {
 };
 
 BotAccount.prototype.getStateName = function (state) {
-    return TradeOfferManager.getStateName(state);
+    return TradeOfferManager.ETradeOfferState[state];
 };
 
 BotAccount.prototype.setSetting = function (settingName, tempSettingValusettingName) {
