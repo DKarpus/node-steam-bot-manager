@@ -2,6 +2,7 @@
 logs
 *.log
 npm-debug.log*
+package-lock.json
 
 # Runtime data
 pids
@@ -16,4 +17,5 @@ node_modules
 .idea
 # Config files
 private
+config
 
