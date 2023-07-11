@@ -72,7 +72,7 @@ function Friends(main, request) {
         } else {
             // Due to the fact that we must submit an API call everytime we need friends list, we will cach the data for 5 minutes. Clear cach on force.
             if (!self.main.loggedIn) {
-                return callback(new Error("Not Logged In'"));
+                return callback(new Error("Not Logged In"));
             }
             else {
                 self.emit('debug', 'Getting a fresh list of friends');

@@ -260,7 +260,7 @@ Trade.prototype.getInventory = function (
 ) {
     var self = this;
     if (!self.auth.loggedIn) {
-        return inventoryCallback(new Error("Not Logged In'"));
+        return inventoryCallback(new Error("Not Logged In"));
     } else
         self.trade.getInventoryContents(
             appid,
@@ -287,7 +287,7 @@ Trade.prototype.getUserInventory = function (
 ) {
     var self = this;
     if (!self.auth.loggedIn) {
-        return inventoryCallback(new Error("Not Logged In'"));
+        return inventoryCallback(new Error("Not Logged In"));
     } else
         self.trade.getUserInventoryContents(
             steamID,

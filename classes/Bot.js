@@ -593,23 +593,6 @@ Bot.prototype.loggedInAccount = function (cookies, sessionID, callbackSteamID) {
         //     });
         // }
 
-        // }
-        // if (self.SteamID) {
-        //     self.Profile.getSteamUser(self.SteamID, function (err, user) {
-        //         if (err) {
-        //             self.emit('debug', 'Failed to get display name for %s', self.getAccountName());
-        //             //self.logger.log("debug", "Failed to get display name for ", self.username, err);
-        // } else {
-        //     self.emit('debug', 'Loaded account details for %s', self.getAccountName());
-        //     //self.logger.log("debug", "Loaded account details for %s", self.username);
-        // self.community_details = user;
-        // self.Profile.displayName = user.name;
-        // self.displayName = user.name;
-        // self.Auth._updateAccountDetails({displayName: user.name});
-        // }
-        // });
-        // }
-
         self.Trade.setAPIAccess(self.api_access);
 
         self.emit("loggedIn", self);

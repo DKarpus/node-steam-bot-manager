@@ -222,8 +222,6 @@ Auth.prototype.loginAccount = function (details, callbackErrorOnly) {
             privateStore[self.accountName].accountDetails,
             function (err, sessionID, cookies, steamguardGen, oAuthTokenGen) {
                 if (err) {
-                    console.log("LOGIN ERROR: ", err);
-
                     self.emit(
                         "error",
                         'Failed to login into "%s" via password due to %s',
@@ -252,8 +250,6 @@ Auth.prototype.loginAccount = function (details, callbackErrorOnly) {
                         oAuthTokenGen;
                     self.loggedIn = true;
                     self.sessionid = sessionID;
-
-                    console.log("LOGGED IN: ", self.loggedIn);
 
                     self.emit("loggedInAccount", cookies, sessionID);
 
