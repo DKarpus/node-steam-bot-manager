@@ -53,8 +53,10 @@ TradeHandler.prototype.confirmOutstandingTrades = function (callback) {
     var time = self.auth.getTime();
     self.auth.getConfirmations(time, self.auth.generateMobileConfirmationCode(time, "conf"), function (err, confirmations) {
         if (err) {
-            if (self.logger != undefined)
+            if (self.logger != undefined) {
                 self.logger.log('error', "Failed to confirm outstanding trades");
+            }
+            callback(err);
             setTimeout(self.confirmOutstandingTrades(callback), 5000);
         }
         else {
@@ -63,11 +65,16 @@ TradeHandler.prototype.confirmOutstandingTrades = function (callback) {
                 for (var confirmId in confirmations) {
                     if (confirmations.hasOwnProperty(confirmId)) {
                         confirmations[confirmId].respond(time, self.auth.generateMobileConfirmationCode(time, "allow"), true, function (err) {
-                            confirmedTrades.push(confirmations[confirmId]);
-                            if (confirmedTrades.length == confirmations.length) {
+                            if (err) {
+                                callback(err);
+                            } else {
+                                confirmedTrades.push(confirmations[confirmId]);
+                                if (confirmedTrades.length == confirmations.length) {
                                 // Everything went smooth
-                                return callback(undefined, confirmations);
+                                    return callback(undefined, confirmations);
+                                }
                             }
+                            
                         });
                     }
                 }

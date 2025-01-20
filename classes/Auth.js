@@ -1,5 +1,5 @@
-Auth.prototype.__proto__ = require('events').EventEmitter.prototype;
-const SteamTotp = require('steam-totp');
+Auth.prototype.__proto__ = require("events").EventEmitter.prototype;
+const SteamTotp = require("steam-totp");
 
 var privateStore = {};
 
@@ -14,16 +14,15 @@ function Auth(accountDetails) {
     let self = this;
 
     // self.BotAccount = BotAccount;
-    accountDetails.accountName = accountDetails.accountName || accountDetails.username;
+    accountDetails.accountName =
+        accountDetails.accountName || accountDetails.username;
     self.accountName = accountDetails.accountName || accountDetails.username;
     // accountDetails.accountName = accountDetails.accountName;
 
     self.settings = {};
 
-
     if (accountDetails.password)
         accountDetails.password = accountDetails.password;
-
 
     self.loggedIn = false;
     // Create an object to manage this instance's state and
@@ -41,41 +40,69 @@ Auth.prototype.initAuth = function (community, store, client) {
     self.client = client;
 };
 
-
 Auth.prototype.enableTwoFactor = function (callback) {
     var self = this;
-    self.emit('enablingTwoFactorAuth');
-    self.emit('debug', 'Enabling two factor authentication for %j', self.username);
+    self.emit("enablingTwoFactorAuth");
+    self.emit(
+        "debug",
+        "Enabling two factor authentication for %j",
+        self.username
+    );
     self.community.enableTwoFactor(function (err, response) {
         if (err) {
-            self.emit('error', 'Failed to enable two factor authentication for %j due to : %j', self.username, err);
+            self.emit(
+                "error",
+                "Failed to enable two factor authentication for %j due to : %j",
+                self.username,
+                err
+            );
             return callback(err, undefined);
         }
-        self.emit('debug', 'Enabled two factor authentication for %j', self.username);
-        privateStore[self.accountName].accountDetails.shared_secret = response.shared_secret;
-        privateStore[self.accountName].accountDetails.identity_secret = response.identity_secret;
-        privateStore[self.accountName].accountDetails.revocation_code = response.revocation_code;
-        self.emit('enabledTwoFactorAuth');
+        self.emit(
+            "debug",
+            "Enabled two factor authentication for %j",
+            self.username
+        );
+        privateStore[self.accountName].accountDetails.shared_secret =
+            response.shared_secret;
+        privateStore[self.accountName].accountDetails.identity_secret =
+            response.identity_secret;
+        privateStore[self.accountName].accountDetails.revocation_code =
+            response.revocation_code;
+        self.emit("enabledTwoFactorAuth");
         return callback(err, response);
     });
 };
 
 Auth.prototype.disableTwoFactor = function (callback) {
     var self = this;
-    self.emit('disablingTwoFactorAuth');
-    self.emit('debug', 'Disabling two factor authentication for %j', self.accountName);
+    self.emit("disablingTwoFactorAuth");
+    self.emit(
+        "debug",
+        "Disabling two factor authentication for %j",
+        self.accountName
+    );
     if (!privateStore[self.accountName].accountDetails.revocation_code)
-        return callback({Error: "There is no revocation code saved."}, undefined);
+        return callback(
+            { Error: "There is no revocation code saved." },
+            undefined
+        );
 
-    self.community.disableTwoFactor(privateStore[self.accountName].accountDetails.revocation_code, function (err) {
-        if (err)
-            return callback(err, undefined);
-        self.emit('debug', 'Disabled two factor authentication for %j', self.accountName);
-        // self.logger.log('debug', 'Disabled two factor authentication for %j', self.getAccountName());
-        privateStore.splice(privateStore.indexOf(self.accountName, 1));
-        self.emit('disabledTwoFactorAuth', response);
-        return callback(undefined, response);
-    });
+    self.community.disableTwoFactor(
+        privateStore[self.accountName].accountDetails.revocation_code,
+        function (err) {
+            if (err) return callback(err, undefined);
+            self.emit(
+                "debug",
+                "Disabled two factor authentication for %j",
+                self.accountName
+            );
+            // self.logger.log('debug', 'Disabled two factor authentication for %j', self.getAccountName());
+            privateStore.splice(privateStore.indexOf(self.accountName, 1));
+            self.emit("disabledTwoFactorAuth", response);
+            return callback(undefined, response);
+        }
+    );
 };
 
 Auth.prototype.setSettings = function (settings) {
@@ -83,12 +110,22 @@ Auth.prototype.setSettings = function (settings) {
     self.settings = settings;
 };
 
-Auth.prototype.finalizeTwoFactor = function (activationCode, callbackErrorOnly) {
+Auth.prototype.finalizeTwoFactor = function (
+    activationCode,
+    callbackErrorOnly
+) {
     var self = this;
-    self.emit('finalizedTwoFactorAuth');
-    self.community.finalizeTwoFactor(privateStore[self.accountName].accountDetails.shared_secret, activationCode, function (err) {
-        callbackErrorOnly(err, privateStore[self.accountName].accountDetails);
-    });
+    self.emit("finalizedTwoFactorAuth");
+    self.community.finalizeTwoFactor(
+        privateStore[self.accountName].accountDetails.shared_secret,
+        activationCode,
+        function (err) {
+            callbackErrorOnly(
+                err,
+                privateStore[self.accountName].accountDetails
+            );
+        }
+    );
 };
 
 /**
@@ -97,96 +134,131 @@ Auth.prototype.finalizeTwoFactor = function (activationCode, callbackErrorOnly) 
  * @callback {callbackErrorOnly}
  */
 Auth.prototype.loginAccount = function (details, callbackErrorOnly) {
-    if (callbackErrorOnly == null){
+    if (callbackErrorOnly == null) {
         callbackErrorOnly = details;
         details = {};
     }
 
-
     var self = this;
 
-
-
-    self.emit('loggingIn');
-    if (self.settings.steamClientLogin)
-        self.client.logOff();
+    self.emit("loggingIn");
+    if (self.settings.steamClientLogin) self.client.logOff();
 
     if (self.has_shared_secret()) {
-        privateStore[self.accountName].accountDetails.twoFactorCode = self.generateMobileAuthenticationCode();
+        privateStore[self.accountName].accountDetails.twoFactorCode =
+            self.generateMobileAuthenticationCode();
     }
 
     if (details != undefined) {
         if (details.authCode != undefined)
-            privateStore[self.accountName].accountDetails.authCode = details.authCode;
+            privateStore[self.accountName].accountDetails.authCode =
+                details.authCode;
         if (details.captcha != undefined)
-            privateStore[self.accountName].accountDetails.captcha = details.captcha;
+            privateStore[self.accountName].accountDetails.captcha =
+                details.captcha;
     }
     let loginDetails = {
         accountName: self.accountName,
         password: privateStore[self.accountName].accountDetails.password,
         authCode: privateStore[self.accountName].accountDetails.authCode,
-        twoFactorCode: privateStore[self.accountName].accountDetails.twoFactorCode,
+        twoFactorCode:
+            privateStore[self.accountName].accountDetails.twoFactorCode,
         rememberPassword: true,
         logonID: 1337,
         machineName: "node-steam-bot-manager",
     };
-    if (privateStore[self.accountName].accountDetails.loginKey){
+    if (privateStore[self.accountName].accountDetails.loginKey) {
         // loginDetails.loginKey = privateStore[self.accountName].accountDetails.loginKey;
     }
-    self.emit('debug', 'Attempting to login to %s ', self.accountName);
+    self.emit("debug", "Attempting to login to %s ", self.accountName);
 
-    if (privateStore[self.accountName].accountDetails.steamguard && privateStore[self.accountName].accountDetails.oAuthToken) {
-        self.emit('debug', 'OAuth method chosen for %s ', self.accountName);
+    if (
+        privateStore[self.accountName].accountDetails.steamguard &&
+        privateStore[self.accountName].accountDetails.oAuthToken
+    ) {
+        self.emit("debug", "OAuth method chosen for %s ", self.accountName);
 
+        self.community.oAuthLogin(
+            privateStore[self.accountName].accountDetails.steamguard,
+            privateStore[self.accountName].accountDetails.oAuthToken,
+            function (err, sessionID, cookies) {
+                self.emit(
+                    "debug",
+                    "Login status for %s: %s",
+                    self.accountName,
+                    err ? false : true
+                );
 
-        self.community.oAuthLogin(privateStore[self.accountName].accountDetails.steamguard, privateStore[self.accountName].accountDetails.oAuthToken, function (err, sessionID, cookies) {
-            self.emit('debug', 'Login status for %s: %s', self.accountName, err ? false : true);
+                if (err) {
+                    self.emit(
+                        "error",
+                        'Failed to login into "%s" via oAuth due to %s',
+                        self.accountName,
+                        err
+                    );
+                    if (callbackErrorOnly != undefined)
+                        return callbackErrorOnly(err);
+                } else {
+                    self.loggedIn = true;
+                    self.sessionid = sessionID;
+                    if (
+                        privateStore[self.accountName].accountDetails
+                            .password &&
+                        self.settings.steamClientLogin &&
+                        !self.client.cellID
+                    ) {
+                        self.client.logOn(loginDetails);
+                    }
 
-            if (err) {
-                self.emit('error', 'Failed to login into "%s" via oAuth due to %s', self.accountName, err);
-                if (callbackErrorOnly != undefined)
-                    return callbackErrorOnly(err);
-            }
-            else {
-                self.loggedIn = true;
-                self.sessionid = sessionID;
-                if (privateStore[self.accountName].accountDetails.password  && self.settings.steamClientLogin && !self.client.cellID) {
-                    self.client.logOn(loginDetails);
-
-                }
-
-                self.emit('loggedInAccount', cookies, sessionID);
-                if (callbackErrorOnly) {
-                    callbackErrorOnly(null);
-                }
-            }
-        });
-    }
-    else {
-        self.community.login(privateStore[self.accountName].accountDetails, function (err, sessionID, cookies, steamguardGen, oAuthTokenGen) {
-            if (err) {
-                self.emit('error', 'Failed to login into "%s" via password due to %s', self.accountName, err);
-                if (callbackErrorOnly != undefined)
-                    callbackErrorOnly(err);
-                return;
-            } else {
-                if (privateStore[self.accountName].accountDetails.password  && self.settings.steamClientLogin && !self.client.cellID) {
-                    self.client.logOn(loginDetails);
-                }
-                self.emit('updatedAccountDetails', privateStore[self.accountName].accountDetails);
-
-                privateStore[self.accountName].accountDetails.steamguard = steamguardGen;
-                privateStore[self.accountName].accountDetails.oAuthToken = oAuthTokenGen;
-                self.loggedIn = true;
-                self.sessionid = sessionID;
-
-                self.emit('loggedInAccount', cookies, sessionID);
-
-                if (callbackErrorOnly) {
-                    callbackErrorOnly(null);
+                    self.emit("loggedInAccount", cookies, sessionID);
+                    if (callbackErrorOnly) {
+                        callbackErrorOnly(null);
+                    }
                 }
             }
-        });
+        );
+    } else {
+        self.community.login(
+            privateStore[self.accountName].accountDetails,
+            function (err, sessionID, cookies, steamguardGen, oAuthTokenGen) {
+                if (err) {
+                    self.emit(
+                        "error",
+                        'Failed to login into "%s" via password due to %s',
+                        self.accountName,
+                        err
+                    );
+                    if (callbackErrorOnly != undefined) callbackErrorOnly(err);
+                    return;
+                } else {
+                    if (
+                        privateStore[self.accountName].accountDetails
+                            .password &&
+                        self.settings.steamClientLogin &&
+                        !self.client.cellID
+                    ) {
+                        self.client.logOn(loginDetails);
+                    }
+                    self.emit(
+                        "updatedAccountDetails",
+                        privateStore[self.accountName].accountDetails
+                    );
+
+                    privateStore[self.accountName].accountDetails.steamguard =
+                        steamguardGen;
+                    privateStore[self.accountName].accountDetails.oAuthToken =
+                        oAuthTokenGen;
+                    self.loggedIn = true;
+                    self.sessionid = sessionID;
+
+                    self.emit("loggedInAccount", cookies, sessionID);
+
+                    if (callbackErrorOnly) {
+                        callbackErrorOnly(null);
+                    }
+                }
+            }
+        );
     }
 };
 
@@ -196,9 +268,8 @@ Auth.prototype.loginAccount = function (details, callbackErrorOnly) {
  */
 Auth.prototype.logoutAccount = function () {
     var self = this;
-    self.emit('loggingOut');
+    self.emit("loggingOut");
     self.community.chatLogoff();
-
 };
 
 /**
@@ -209,9 +280,9 @@ Auth.prototype.logoutAccount = function () {
 Auth.prototype.setRevocationCode = function (revocationCode) {
     var self = this;
     if (revocationCode.indexOf("R") == 0 && revocationCode.length == 6)
-        return privateStore[self.accountName].accountDetails.revocation_code = revocationCode;
-    else
-        return null;
+        return (privateStore[self.accountName].accountDetails.revocation_code =
+            revocationCode);
+    else return null;
 };
 
 Auth.prototype.has_shared_secret = function () {
@@ -226,9 +297,13 @@ Auth.prototype.has_shared_secret = function () {
 Auth.prototype.generateMobileAuthenticationCode = function () {
     var self = this;
     if (privateStore[self.accountName].accountDetails.shared_secret)
-        return SteamTotp.generateAuthCode(privateStore[self.accountName].accountDetails.shared_secret);
+        return SteamTotp.generateAuthCode(
+            privateStore[self.accountName].accountDetails.shared_secret
+        );
     else
-        return new Error("Failed to generate authentication code. Enable 2-factor-authentication via this tool.");
+        return new Error(
+            "Failed to generate authentication code. Enable 2-factor-authentication via this tool."
+        );
 };
 /**
  *
@@ -239,9 +314,15 @@ Auth.prototype.generateMobileAuthenticationCode = function () {
 Auth.prototype.generateMobileConfirmationCode = function (time, tag) {
     var self = this;
     if (privateStore[self.accountName].accountDetails.identity_secret)
-        return SteamTotp.generateConfirmationKey(privateStore[self.accountName].accountDetails.identity_secret, time, tag);
+        return SteamTotp.generateConfirmationKey(
+            privateStore[self.accountName].accountDetails.identity_secret,
+            time,
+            tag
+        );
     else
-        return new Error("Failed to generate confirmation code. Enable 2-factor-authentication via this tool.");
+        return new Error(
+            "Failed to generate confirmation code. Enable 2-factor-authentication via this tool."
+        );
 };
 
 /**
@@ -251,14 +332,30 @@ Auth.prototype.generateMobileConfirmationCode = function (time, tag) {
 Auth.prototype._updateAccountDetails = function (newDetails) {
     // We will loop through all new details and ensure they do no edit any protected details
     var self = this;
-    var protectedDetails = ["username", "accountName", "oAuthToken", "steamguard", "password", "shared_secret", "identity_secret", "revocation_code", "steamid64", "loginKey", "displayName"];
+    var protectedDetails = [
+        "username",
+        "accountName",
+        "oAuthToken",
+        "steamguard",
+        "password",
+        "shared_secret",
+        "identity_secret",
+        "revocation_code",
+        "steamid64",
+        "loginKey",
+        "displayName",
+    ];
     for (var newDetail in newDetails) {
         if (newDetails.hasOwnProperty(newDetail))
             if (protectedDetails.indexOf(newDetail) == -1)
                 if (newDetails.hasOwnProperty(newDetail))
-                    privateStore[self.accountName].accountDetails[newDetail] = newDetails[newDetail];
+                    privateStore[self.accountName].accountDetails[newDetail] =
+                        newDetails[newDetail];
     }
-    self.emit('updatedAccountDetails', privateStore[self.accountName].accountDetails);
+    self.emit(
+        "updatedAccountDetails",
+        privateStore[self.accountName].accountDetails
+    );
 };
 /**
  * @callback confirmationsCallback
@@ -276,9 +373,23 @@ Auth.prototype.getConfirmations = function (time, key, confirmationsCallback) {
     self.community.getConfirmations(time, key, confirmationsCallback);
 };
 
-Auth.prototype.respondToConfirmation = function (confID, confKey, time, key, accept, callback) {
+Auth.prototype.respondToConfirmation = function (
+    confID,
+    confKey,
+    time,
+    key,
+    accept,
+    callback
+) {
     var self = this;
-    self.community.respondToConfirmation(confID, confKey, time, key, accept, callback);
+    self.community.respondToConfirmation(
+        confID,
+        confKey,
+        time,
+        key,
+        accept,
+        callback
+    );
 };
 /**
  * Get system time... for use with auth.

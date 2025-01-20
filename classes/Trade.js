@@ -1,5 +1,4 @@
-Trade.prototype.__proto__ = require('events').EventEmitter.prototype;
-
+Trade.prototype.__proto__ = require("events").EventEmitter.prototype;
 
 /**
  * A class to handle all trade functions to be done on behalf of the bot account
@@ -14,7 +13,9 @@ Trade.prototype.__proto__ = require('events').EventEmitter.prototype;
 function Trade(trade, auth, tasks, settings) {
     var self = this;
     if (typeof trade != "object" || typeof auth != "object")
-        throw Error("TradeOfferManager & AuthHandler must be passed respectively.");
+        throw Error(
+            "TradeOfferManager & AuthHandler must be passed respectively."
+        );
     self.auth = auth;
     self.trade = trade;
     self.tasks = tasks;
@@ -22,10 +23,9 @@ function Trade(trade, auth, tasks, settings) {
 
     if (typeof settings != "object")
         self.settings = {
-            cancelTradeOnOverflow: true
+            cancelTradeOnOverflow: true,
         };
-    else
-        self.settings = settings;
+    else self.settings = settings;
 }
 
 Trade.prototype.setAPIAccess = function (api_access) {
@@ -39,42 +39,63 @@ Trade.prototype.confirmOutstandingTrades = function (callback) {
     var self = this;
     self.auth.getTimeOffset(function (err, offset, latency) {
         var time = self.auth.getTime(offset);
-        console.log(time);
-        self.auth.getConfirmations(time, self.auth.generateMobileConfirmationCode(time, "conf"), function (err, confirmations) {
-            if (err) {
-                self.emit('error', 'Failed to confirm outstanding trades. Due to: ' + err);
-                // setTimeout(self.confirmOutstandingTrades(callback), 5000);
-                return callback(err, []);
-            }
-            else {
-                if (confirmations.length > 0) {
-                    var confIds = [];
-                    var confKeys = [];
 
-                    for (var confirmId in confirmations) {
-                        if (confirmations.hasOwnProperty(confirmId)) {
-                            confIds.push(confirmations[confirmId].id);
-                            confKeys.push(confirmations[confirmId].key);
-                        }
-                    }
-
-                    self.auth.getTimeOffset(function (err, offset, latency) {
-                        var time = self.auth.getTime(offset);
-                        self.auth.respondToConfirmation(confIds, confKeys, time, self.auth.generateMobileConfirmationCode(time, "allow"), true, function (err) {
-                            if (err) {
-                                self.emit('error', 'Failed to respond outstanding trade confirmation. Due to ' + err);
-                            } else
-                                return callback(null, confirmations);
-                        });
-                    });
-
+        self.auth.getConfirmations(
+            time,
+            self.auth.generateMobileConfirmationCode(time, "conf"),
+            function (err, confirmations) {
+                if (err) {
+                    self.emit(
+                        "error",
+                        "Failed to confirm outstanding trades. Due to: " + err
+                    );
+                    // setTimeout(self.confirmOutstandingTrades(callback), 5000);
+                    return callback(err, []);
                 } else {
-                    return callback(null, []);
+                    if (confirmations.length > 0) {
+                        var confIds = [];
+                        var confKeys = [];
+
+                        for (var confirmId in confirmations) {
+                            if (confirmations.hasOwnProperty(confirmId)) {
+                                confIds.push(confirmations[confirmId].id);
+                                confKeys.push(confirmations[confirmId].key);
+                            }
+                        }
+
+                        self.auth.getTimeOffset(function (
+                            err,
+                            offset,
+                            latency
+                        ) {
+                            var time = self.auth.getTime(offset);
+                            self.auth.respondToConfirmation(
+                                confIds,
+                                confKeys,
+                                time,
+                                self.auth.generateMobileConfirmationCode(
+                                    time,
+                                    "allow"
+                                ),
+                                true,
+                                function (err) {
+                                    if (err) {
+                                        self.emit(
+                                            "error",
+                                            "Failed to respond outstanding trade confirmation. Due to " +
+                                                err
+                                        );
+                                    } else return callback(null, confirmations);
+                                }
+                            );
+                        });
+                    } else {
+                        return callback(null, []);
+                    }
                 }
             }
-        });
+        );
     });
-
 };
 
 /**
@@ -90,12 +111,10 @@ Trade.prototype.createOffer = function (sid, token, callback) {
         token = null;
     }
 
-
     if (self.settings.cancelTradeOnOverflow && self.api_access) {
-        self.emit('debug', 'Checking for overflow in trades');
+        self.emit("debug", "Checking for overflow in trades");
         self.trade.getOffers(1, null, function (err, sent, received) {
-            if (err)
-                return callback(err, undefined);
+            if (err) return callback(err, undefined);
 
             var allTrades = [];
             var tradeToCancelDueToTotalLimit = undefined;
@@ -112,32 +131,48 @@ Trade.prototype.createOffer = function (sid, token, callback) {
                 var trade = allTrades[tradeIndex];
                 if (!savedTradesCounts.hasOwnProperty(trade.partner))
                     savedTradesCounts[trade.partner] = 0;
-                savedTradesCounts[trade.partner] = savedTradesCounts[trade.partner] + 1;
+                savedTradesCounts[trade.partner] =
+                    savedTradesCounts[trade.partner] + 1;
                 if (savedTradesCounts[trade.partner] >= 5)
                     tradeToCancelDueToPersonalLimit.push(trade);
-
-                if (tradeToCancelDueToTotalLimit == undefined || tradeToCancelDueToTotalLimit.updated.getTime() > trade.updated.getTime()) {
+                if (
+                    tradeToCancelDueToTotalLimit == undefined ||
+                    tradeToCancelDueToTotalLimit.updated.getTime() >
+                        trade.updated.getTime()
+                ) {
                     tradeToCancelDueToTotalLimit = trade;
                 }
             }
-            if (tradeToCancelDueToPersonalLimit.length >= 0 && self.settings.cancelTradeOnOverflow) {
+            if (
+                tradeToCancelDueToPersonalLimit.length >= 0 &&
+                self.settings.cancelTradeOnOverflow
+            ) {
                 for (var tradeIndex in tradeToCancelDueToPersonalLimit) {
-                    self.emit('debug', 'Cancelled trade #' + tradeToCancelDueToPersonalLimit[tradeIndex].id + ' due to overload in personal trade requests');
+                    self.emit(
+                        "debug",
+                        "Cancelled trade #" +
+                            tradeToCancelDueToPersonalLimit[tradeIndex].id +
+                            " due to overload in personal trade requests"
+                    );
                     tradeToCancelDueToPersonalLimit[tradeIndex].cancel();
                 }
             }
             if (allTrades.length >= 30 && self.settings.cancelTradeOnOverflow) {
-                    self.emit('debug', 'Cancelled trade #' + tradeToCancelDueToTotalLimit.id + ' due to overload in total trade requests');
+                self.emit(
+                    "debug",
+                    "Cancelled trade #" +
+                        tradeToCancelDueToTotalLimit.id +
+                        " due to overload in total trade requests"
+                );
                 tradeToCancelDueToTotalLimit.cancel();
             }
-            self.emit('createdOffer', sid);
-            self.emit('debug', 'Created trade offer');
+            self.emit("createdOffer", sid);
+            self.emit("debug", "Created trade offer");
             return callback(null, self.trade.createOffer(sid, token));
-
         });
     } else {
-        self.emit('debug', 'Created trade offer');
-        self.emit('createdOffer', sid);
+        self.emit("debug", "Created trade offer");
+        self.emit("createdOffer", sid);
         // Before we create an offer, we will get previous offers and ensure it meets the limitations, to avoid errors.
         return callback(null, self.trade.createOffer(sid, token));
     }
@@ -162,7 +197,9 @@ Trade.prototype.confirmTradesFromUser = function (SteamID, callback) {
         for (var sentOfferIndex in sent) {
             if (sent.hasOwnProperty(sentOfferIndex)) {
                 var sentOfferInfo = sent[sentOfferIndex];
-                if (sentOfferInfo.partner.getSteamID64() == SteamID.getSteamID64) {
+                if (
+                    sentOfferInfo.partner.getSteamID64() == SteamID.getSteamID64
+                ) {
                     sentOfferInfo.accept();
                     acceptedTrades.push(sentOfferInfo);
                 }
@@ -172,7 +209,10 @@ Trade.prototype.confirmTradesFromUser = function (SteamID, callback) {
         for (var receivedOfferIndex in received) {
             if (received.hasOwnProperty(receivedOfferIndex)) {
                 var receievedOfferInfo = received[receivedOfferIndex];
-                if (receievedOfferInfo.partner.getSteamID64() == SteamID.getSteamID64) {
+                if (
+                    receievedOfferInfo.partner.getSteamID64() ==
+                    SteamID.getSteamID64
+                ) {
                     receievedOfferInfo.accept();
                     acceptedTrades.push(receievedOfferInfo);
                 }
@@ -189,7 +229,6 @@ Trade.prototype.confirmTradesFromUser = function (SteamID, callback) {
  * @param {Array} token - The token of the current bot account
  */
 
-
 /**
  * Retrieves the token part of your account's trade URL.
  * @param {tradeTokenCallback} tradeTokenCallback - Token callback
@@ -198,7 +237,6 @@ Trade.prototype.getOfferToken = function (tradeTokenCallback) {
     var self = this;
     self.trade.getOfferToken(tradeTokenCallback);
 };
-
 
 /**
  * @callback inventoryCallback
@@ -214,13 +252,22 @@ Trade.prototype.getOfferToken = function (tradeTokenCallback) {
  * @param {Boolean} tradableOnly - Items retrieved must be tradable
  * @param {inventoryCallback} inventoryCallback - Inventory details (refer to inventoryCallback for more info.)
  */
-Trade.prototype.getInventory = function (appid, contextid, tradableOnly, inventoryCallback) {
+Trade.prototype.getInventory = function (
+    appid,
+    contextid,
+    tradableOnly,
+    inventoryCallback
+) {
     var self = this;
     if (!self.auth.loggedIn) {
-        return inventoryCallback(new Error("Not Logged In'"));
-    }
-    else
-        self.trade.getInventoryContents(appid, contextid, tradableOnly, inventoryCallback);
+        return inventoryCallback(new Error("Not Logged In"));
+    } else
+        self.trade.getInventoryContents(
+            appid,
+            contextid,
+            tradableOnly,
+            inventoryCallback
+        );
 };
 
 /**
@@ -231,20 +278,29 @@ Trade.prototype.getInventory = function (appid, contextid, tradableOnly, invento
  * @param {Boolean} tradableOnly - Items retrieved must be tradableOnly
  * @param {inventoryCallback} inventoryCallback - Inventory details (refer to inventoryCallback for more info.)
  */
-Trade.prototype.getUserInventory = function (steamID, appid, contextid, tradableOnly, inventoryCallback) {
+Trade.prototype.getUserInventory = function (
+    steamID,
+    appid,
+    contextid,
+    tradableOnly,
+    inventoryCallback
+) {
     var self = this;
     if (!self.auth.loggedIn) {
-        return inventoryCallback(new Error("Not Logged In'"));
-    }
-    else
-        self.trade.getUserInventoryContents(steamID, appid, contextid, tradableOnly, inventoryCallback);
+        return inventoryCallback(new Error("Not Logged In"));
+    } else
+        self.trade.getUserInventoryContents(
+            steamID,
+            appid,
+            contextid,
+            tradableOnly,
+            inventoryCallback
+        );
 };
-
 
 Trade.prototype.getStateName = function (state) {
     var self = this;
     return self.trade.getStateName(state);
 };
-
 
 module.exports = Trade;
