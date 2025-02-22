@@ -11,7 +11,7 @@ const SteamUser = require("steam-user");
 const SteamStore = require("steamstore");
 const TradeOfferManager = require("steam-tradeoffer-manager");
 const SteamID = TradeOfferManager.SteamID;
-const request = require("request");
+const fetch = require('node-fetch');
 
 /**
  * Create a new bot instance
@@ -235,7 +235,6 @@ Bot.prototype.initUser = function (options, callback) {
     let requestOptions = {};
     if (options.hasOwnProperty("request")) {
         requestOptions = options.request;
-        allOpts.request = request.defaults(requestOptions);
     }
 
     self.community = new SteamCommunity(allOpts);
@@ -262,11 +261,23 @@ Bot.prototype.initUser = function (options, callback) {
         language: options.hasOwnProperty("language")
             ? options.language
             : self.settings.language, // We want English item descriptions
-        pollInterval: options.hasOwnProperty("tradePollInterval")
-            ? options.tradePollInterval
-            : self.settings.tradePollInterval, // We want to poll every 5 seconds since we don't have Steam notifying us of offers
+        pollInterval: self.settings.tradePollInterval // We want to poll every 5 seconds since we don't have Steam notifying us of offers
     });
-    self.request = self.community.request;
+
+    // Use node-fetch for requests
+    self.request = async (requestOptions) => {
+        const response = await fetch(requestOptions.url, {
+            method: requestOptions.method || 'GET',
+            body: requestOptions.form ? JSON.stringify(requestOptions.form) : undefined,
+            headers: {
+                'Content-Type': 'application/json',
+                ...requestOptions.headers
+            }
+        });
+        const body = await response.json();
+        return { statusCode: response.status, body };
+    };
+
     self.store = new SteamStore();
     self.Auth.initAuth(self.community, self.store, self.client);
 

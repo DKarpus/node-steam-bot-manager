@@ -1,5 +1,6 @@
-Request.prototype.__proto__ = require('events').EventEmitter.prototype;
+const fetch = require('node-fetch');
 
+Request.prototype.__proto__ = require('events').EventEmitter.prototype;
 
 /**
  * A class to handle manual requests to SteamID on behalf of the bot account.
@@ -7,9 +8,8 @@ Request.prototype.__proto__ = require('events').EventEmitter.prototype;
  * @param logger
  * @constructor
  */
-function Request(request) {
+function Request() {
     var self = this;
-    self.request = request;
 }
 
 /**
@@ -17,34 +17,39 @@ function Request(request) {
  * @param url
  * @param callback
  */
-Request.prototype.getRequest = function (url, callback) {
-    var self = this;
-    self.request({
-        url: url,
-        method: "GET",
-        json: true
-    }, function (err, response, body) {
-        callback(err, body, response);
-    });
+Request.prototype.getRequest = async function (url, callback) {
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+        });
+        const body = await response.json();
+        callback(null, body, response);
+    } catch (err) {
+        callback(err);
+    }
 };
+
 /**
  * Send a custom POST request to any url on steam community while logged in as the bot account.
  * @param url
  * @param data
  * @param callback
  */
-Request.prototype.postRequest = function (url, data, callback) {
-    var self = this;
-    self.request({
-        url: url,
-        method: "POST",
-        json: true,
-        form: data
-    }, function (err, response, body) {
-        callback(err, body);
-    });
+Request.prototype.postRequest = async function (url, data, callback) {
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        const body = await response.json();
+        callback(null, body, response);
+    } catch (err) {
+        callback(err);
+    }
 };
-
 
 /**
  * @callback callbackRequestAPI
@@ -60,23 +65,20 @@ Request.prototype.postRequest = function (url, data, callback) {
  * @param options - Data to attach to request
  * @param callbackRequestAPI -
  */
-Request.prototype.getRequestAPI = function (apiInterface, version, method, options, callbackRequestAPI) {
-    var self = this;
-
+Request.prototype.getRequestAPI = async function (apiInterface, version, method, options, callbackRequestAPI) {
     var string = '?';
     var x = 0;
     for (var option in options)
         if (options.hasOwnProperty(option))
             string += option + "=" + options[option] + (x++ < Object.keys(options).length - 1 ? "&" : '');
-    self.emit('debug', 'Sending GET request to ' + string);
-
-    self.request({
-        url: 'http://api.steampowered.com/' + apiInterface + '/' + method + '/' + version + '/' + string,
-        method: "GET",
-        json: true
-    }, function (err, response, body) {
-        callbackRequestAPI(err, body);
-    });
+    
+    try {
+        const response = await fetch(`http://api.steampowered.com/${apiInterface}/${method}/${version}/${string}`);
+        const body = await response.json();
+        callbackRequestAPI(null, body);
+    } catch (err) {
+        callbackRequestAPI(err);
+    }
 };
 
 module.exports = Request;

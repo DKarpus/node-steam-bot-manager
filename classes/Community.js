@@ -1,7 +1,7 @@
 Community.prototype.__proto__ = require('events').EventEmitter.prototype;
 const EResult = require("../enums/EResult");
 const SteamID = require('steam-tradeoffer-manager').SteamID;
-
+const fetch = require('node-fetch');
 
 /**
  * A class to handle all community functions
@@ -17,71 +17,91 @@ function Community(community, Auth) {
     self.Auth = Auth;
 }
 
+// Helper method for HTTP requests
+Community.prototype._makeRequest = async function(url, options = {}) {
+    const response = await fetch(url, {
+        method: options.method || 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(options.form)
+    });
+    
+    const body = await response.json();
+    return { response, body };
+};
 
 /**
  * Upvote an attachement file on SteamCommunity
  * @param sharedFileId
  * @param callbackErrorOnly
  */
-Community.prototype.upvoteSharedFile = function (sharedFileId, callbackErrorOnly) {
+Community.prototype.upvoteSharedFile = async function (sharedFileId, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'id': sharedFileId
-        }
-    };
-
-    self.community.httpRequestPost('https://steamcommunity.com/sharedfiles/voteup', options, function (error, response, body) {
-        if (response.statusCode == 200 && JSON.parse(body).success == 1)
+    try {
+        const { response, body } = await self._makeRequest('https://steamcommunity.com/sharedfiles/voteup', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'id': sharedFileId
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
+
 /**
  * Downvote an attachement file on SteamCommunity.
  * @param sharedFileId
  * @param callbackErrorOnly
  */
-Community.prototype.downvoteSharedFile = function (sharedFileId, callbackErrorOnly) {
+Community.prototype.downvoteSharedFile = async function (sharedFileId, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'id': sharedFileId
-        }
-    };
-
-    self.community.httpRequestPost('https://steamcommunity.com/sharedfiles/votedown', options, function (error, response, body) {
-        if (response.statusCode == 200 && JSON.parse(body).success == 1)
+    try {
+        const { response, body } = await self._makeRequest('https://steamcommunity.com/sharedfiles/votedown', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'id': sharedFileId
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Preview an attachement file on SteamCommunity to increase the unique views of a certain attachment
  * @param sharedFileId
  * @param callbackErrorOnly
  */
-Community.prototype.previewSharedFile = function (sharedFileId, callbackErrorOnly) {
+Community.prototype.previewSharedFile = async function (sharedFileId, callbackErrorOnly) {
     var self = this;
-
-    var options = {};
-
-    self.community.httpRequestGet('http://steamcommunity.com/sharedfiles/filedetails/?id=' + sharedFileId, options, function (error, response, body) {
-        if (response.statusCode == 200)
+    try {
+        const { response } = await self._makeRequest('http://steamcommunity.com/sharedfiles/filedetails/?id=' + sharedFileId, {
+            method: 'GET'
+        });
+        
+        if (response.status === 200) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error);
-    });
+        } else {
+            callbackErrorOnly(new Error('Failed to preview shared file'));
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Favourite an attachement file on SteamCommunity.
@@ -89,25 +109,26 @@ Community.prototype.previewSharedFile = function (sharedFileId, callbackErrorOnl
  * @param sharedFileAppId
  * @param callbackErrorOnly
  */
-Community.prototype.favouriteSharedFile = function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
+Community.prototype.favouriteSharedFile = async function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'id': sharedFileId,
-            'appid': sharedFileAppId
-        }
-    };
-
-    self.community.httpRequestPost('http://steamcommunity.com/sharedfiles/favorite', options, function (error, response, body) {
-        if (!error)
+    try {
+        const { response, body } = await self._makeRequest('http://steamcommunity.com/sharedfiles/favorite', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'id': sharedFileId,
+                'appid': sharedFileAppId
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Subscribe to an attachement file on SteamCommunity.
@@ -115,23 +136,25 @@ Community.prototype.favouriteSharedFile = function (sharedFileId, sharedFileAppI
  * @param sharedFileAppId
  * @param callbackErrorOnly
  */
-Community.prototype.subscribeSharedFile = function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
+Community.prototype.subscribeSharedFile = async function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'id': sharedFileId,
-            'appid': sharedFileAppId
-        }
-    };
-
-    self.community.httpRequestPost('http://steamcommunity.com/sharedfiles/subscribe', options, function (error, response, body) {
-        if (!error)
+    try {
+        const { response, body } = await self._makeRequest('http://steamcommunity.com/sharedfiles/subscribe', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'id': sharedFileId,
+                'appid': sharedFileAppId
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
 
 /**
@@ -140,25 +163,26 @@ Community.prototype.subscribeSharedFile = function (sharedFileId, sharedFileAppI
  * @param sharedFileAppId
  * @param callbackErrorOnly
  */
-Community.prototype.unsubscribeSharedFile = function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
+Community.prototype.unsubscribeSharedFile = async function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'id': sharedFileId,
-            'appid': sharedFileAppId
-        }
-    };
-
-    self.community.httpRequestPost('http://steamcommunity.com/sharedfiles/unsubscribe', options, function (error, response, body) {
-        if (!error)
+    try {
+        const { response, body } = await self._makeRequest('http://steamcommunity.com/sharedfiles/unsubscribe', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'id': sharedFileId,
+                'appid': sharedFileAppId
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Unfavourite an attachement file on SteamCommunity.
@@ -166,25 +190,26 @@ Community.prototype.unsubscribeSharedFile = function (sharedFileId, sharedFileAp
  * @param sharedFileAppId
  * @param callbackErrorOnly
  */
-Community.prototype.unfavouriteSharedFile = function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
+Community.prototype.unfavouriteSharedFile = async function (sharedFileId, sharedFileAppId, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'id': sharedFileId,
-            'appid': sharedFileAppId
-        }
-    };
-
-    self.community.httpRequestPost('http://steamcommunity.com/sharedfiles/unfavorite', options, function (error, response, body) {
-        if (!error)
+    try {
+        const { response, body } = await self._makeRequest('http://steamcommunity.com/sharedfiles/unfavorite', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'id': sharedFileId,
+                'appid': sharedFileAppId
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Comment on an attachement file on SteamCommunity.
@@ -193,22 +218,24 @@ Community.prototype.unfavouriteSharedFile = function (sharedFileId, sharedFileAp
  * @param fileIdOwner
  * @param callbackErrorOnly
  */
-Community.prototype.commentSharedFile = function (comment, sharedFileId, fileIdOwner, callbackErrorOnly) {
+Community.prototype.commentSharedFile = async function (comment, sharedFileId, fileIdOwner, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'comment': comment
-        }
-    };
-
-    self.community.httpRequestPost('http://steamcommunity.com/comment/PublishedFile_Public/post/' + fileIdOwner + '/' + sharedFileId + '/', options, function (error, response, body) {
-        if (!error)
+    try {
+        const { response, body } = await self._makeRequest('http://steamcommunity.com/comment/PublishedFile_Public/post/' + fileIdOwner + '/' + sharedFileId + '/', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'comment': comment
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
 
 /**
@@ -218,85 +245,89 @@ Community.prototype.commentSharedFile = function (comment, sharedFileId, fileIdO
  * @param fileIdOwner
  * @param callbackErrorOnly
  */
-Community.prototype.deleteCommentSharedFile = function (commentId, sharedFileId, fileIdOwner, callbackErrorOnly) {
+Community.prototype.deleteCommentSharedFile = async function (commentId, sharedFileId, fileIdOwner, callbackErrorOnly) {
     var self = this;
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid,
-            'gidcomment': commentId
-        }
-    };
-
-    self.community.httpRequestPost('http://steamcommunity.com/comment/PublishedFile_Public/delete/' + fileIdOwner + '/' + sharedFileId + '/', options, function (error, response, body) {
-        if (!error)
+    try {
+        const { response, body } = await self._makeRequest('http://steamcommunity.com/comment/PublishedFile_Public/delete/' + fileIdOwner + '/' + sharedFileId + '/', {
+            form: {
+                'sessionid': self.Auth.sessionid,
+                'gidcomment': commentId
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Follow a user on SteamCommunity.
  * @param steamid | profile name or steamid2, steamid3, steamid64
  * @param callbackErrorOnly
  */
-Community.prototype.followPublisher = function (steamid, callbackErrorOnly) {
+Community.prototype.followPublisher = async function (steamid, callbackErrorOnly) {
     var self = this;
     var user = null;
     try {
         var steamID = new SteamID(steamid);
         user = 'profiles/' + steamID.getSteamID64();
-    } catch (e){
+    } catch (e) {
         user = 'id/' + steamid;
-
     }
 
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid
-        }
-    };
-
-    self.community.httpRequestPost('https://steamcommunity.com/' + user + '/followuser/', options, function (error, response, body) {
-        if (response.statusCode == 200 && JSON.parse(body).success == 1)
+    try {
+        const { response, body } = await self._makeRequest(`https://steamcommunity.com/${user}/followuser/`, {
+            form: {
+                'sessionid': self.Auth.sessionid
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
+
 /**
  * Unfollow a user on SteamCommunity.
  * @param steamid | SteamID object or profile name
  * @param callbackErrorOnly
  */
-Community.prototype.unfollowPublisher = function (steamid, callbackErrorOnly) {
+Community.prototype.unfollowPublisher = async function (steamid, callbackErrorOnly) {
     var self = this;
     var user = null;
     try {
         var steamID = new SteamID(steamid);
         user = 'profiles/' + steamID.getSteamID64();
-    } catch (e){
+    } catch (e) {
         user = 'id/' + steamid;
-
     }
 
-
-    var options = {
-        form: {
-            'sessionid': self.Auth.sessionid
-        }
-    };
-
-    self.community.httpRequestPost('https://steamcommunity.com/' + user + '/unfollowuser/', options, function (error, response, body) {
-        if (response.statusCode == 200 && JSON.parse(body).success == 1)
+    try {
+        const { response, body } = await self._makeRequest(`https://steamcommunity.com/${user}/unfollowuser/`, {
+            form: {
+                'sessionid': self.Auth.sessionid
+            }
+        });
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Invite a user on SteamCommunity to a group.
@@ -304,9 +335,8 @@ Community.prototype.unfollowPublisher = function (steamid, callbackErrorOnly) {
  * @param steamIDInvitee | Either an array list of steamid's or a single steamid. Must be an array object if list.
  * @param callbackErrorOnly
  */
-Community.prototype.inviteToGroup = function (groupID, steamIDInvitee, callbackErrorOnly) {
+Community.prototype.inviteToGroup = async function (groupID, steamIDInvitee, callbackErrorOnly) {
     var self = this;
-
     var options = {
         form: {
             json: 1,
@@ -315,24 +345,28 @@ Community.prototype.inviteToGroup = function (groupID, steamIDInvitee, callbackE
             sessionID: self.Auth.sessionid
         }
     };
-    if ( steamIDInvitee instanceof Array )
-        options.form.invitee_list = JSON.stringify( steamIDInvitee );
-    else
+    if (steamIDInvitee instanceof Array) {
+        options.form.invitee_list = JSON.stringify(steamIDInvitee);
+    } else {
         options.form.invitee = steamIDInvitee;
+    }
 
-
-    self.community.httpRequestPost('https://steamcommunity.com/actions/GroupInvite', options, function (error, response, body) {
-        if (response.statusCode == 200 && JSON.parse(body).success == 1)
+    try {
+        const { response, body } = await self._makeRequest('https://steamcommunity.com/actions/GroupInvite', options);
+        
+        if (response.status === 200 && body.success === 1) {
             callbackErrorOnly(undefined);
-        else if (response.statusCode == 200 && JSON.parse(body).duplicate)
+        } else if (response.status === 200 && body.duplicate) {
             callbackErrorOnly("Failed to send one or more invites due to a user being already invited or in the group by " + self.Auth.accountName);
-        else if (response.statusCode == 403)
+        } else if (response.status === 403) {
             callbackErrorOnly(self.Auth.accountName + " is not part of the group, therefore unable to invite users.");
-        else
-            callbackErrorOnly(error || EResult[JSON.parse(body).success]);
-    });
+        } else {
+            callbackErrorOnly(EResult[body.success]);
+        }
+    } catch (error) {
+        callbackErrorOnly(error);
+    }
 };
-
 
 /**
  * Join a group
@@ -350,6 +384,7 @@ Community.prototype.joinGroup = function (groupID, callbackErrorOnly) {
         })
     });
 };
+
 /**
  * Leave a group
  * @param groupID
@@ -366,7 +401,6 @@ Community.prototype.leaveGroup = function (groupID, callbackErrorOnly) {
         })
     });
 };
-
 
 /**
  * Kick user from group
@@ -385,6 +419,7 @@ Community.prototype.kickFromGroup = function (groupID, steamID, callbackErrorOnl
         })
     });
 };
+
 /**
  * Get Group info...
  * @param groupID
@@ -420,11 +455,9 @@ Community.prototype.getWebApiKey = function (domain, callbackApiKey) {
         domain = "localhost";
     }
 
-
     self.community.getWebApiKey(domain, function(err, apiKey){
         callbackApiKey(err, apiKey);
     });
 };
-
 
 module.exports = Community;

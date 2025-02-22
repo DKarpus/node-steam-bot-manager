@@ -1,3 +1,5 @@
+const fetch = require('node-fetch');
+
 Trade.prototype.__proto__ = require("events").EventEmitter.prototype;
 
 /**
@@ -104,7 +106,7 @@ Trade.prototype.confirmOutstandingTrades = function (callback) {
  * @param callback
  * @returns {*}
  */
-Trade.prototype.createOffer = function (sid, token, callback) {
+Trade.prototype.createOffer = async function (sid, token, callback) {
     var self = this;
     if (callback == null) {
         callback = token;
@@ -113,63 +115,47 @@ Trade.prototype.createOffer = function (sid, token, callback) {
 
     if (self.settings.cancelTradeOnOverflow && self.api_access) {
         self.emit("debug", "Checking for overflow in trades");
-        self.trade.getOffers(1, null, function (err, sent, received) {
-            if (err) return callback(err, undefined);
+        try {
+            const [sent, received] = await new Promise((resolve, reject) => {
+                self.trade.getOffers(1, null, (err, sent, received) => {
+                    if (err) reject(err);
+                    else resolve([sent, received]);
+                });
+            });
 
-            var allTrades = [];
+            var allTrades = [...(sent || []), ...(received || [])];
             var tradeToCancelDueToTotalLimit = undefined;
             var tradeToCancelDueToPersonalLimit = [];
 
-            for (var tradeIndex in sent) {
-                allTrades.push(sent[tradeIndex]);
-            }
-            for (var tradeIndex in received) {
-                allTrades.push(received[tradeIndex]);
-            }
-            var savedTradesCounts = {};
-            for (var tradeIndex in allTrades) {
-                var trade = allTrades[tradeIndex];
-                if (!savedTradesCounts.hasOwnProperty(trade.partner))
-                    savedTradesCounts[trade.partner] = 0;
-                savedTradesCounts[trade.partner] =
-                    savedTradesCounts[trade.partner] + 1;
-                if (savedTradesCounts[trade.partner] >= 5)
+            const savedTradesCounts = allTrades.reduce((counts, trade) => {
+                counts[trade.partner] = (counts[trade.partner] || 0) + 1;
+                if (counts[trade.partner] >= 5) {
                     tradeToCancelDueToPersonalLimit.push(trade);
-                if (
-                    tradeToCancelDueToTotalLimit == undefined ||
-                    tradeToCancelDueToTotalLimit.updated.getTime() >
-                        trade.updated.getTime()
-                ) {
+                }
+                if (!tradeToCancelDueToTotalLimit || tradeToCancelDueToTotalLimit.updated.getTime() > trade.updated.getTime()) {
                     tradeToCancelDueToTotalLimit = trade;
                 }
-            }
-            if (
-                tradeToCancelDueToPersonalLimit.length >= 0 &&
-                self.settings.cancelTradeOnOverflow
-            ) {
-                for (var tradeIndex in tradeToCancelDueToPersonalLimit) {
-                    self.emit(
-                        "debug",
-                        "Cancelled trade #" +
-                            tradeToCancelDueToPersonalLimit[tradeIndex].id +
-                            " due to overload in personal trade requests"
-                    );
-                    tradeToCancelDueToPersonalLimit[tradeIndex].cancel();
+                return counts;
+            }, {});
+
+            if (tradeToCancelDueToPersonalLimit.length > 0 && self.settings.cancelTradeOnOverflow) {
+                for (const trade of tradeToCancelDueToPersonalLimit) {
+                    self.emit("debug", `Cancelled trade #${trade.id} due to overload in personal trade requests`);
+                    await trade.cancel();
                 }
             }
+
             if (allTrades.length >= 30 && self.settings.cancelTradeOnOverflow) {
-                self.emit(
-                    "debug",
-                    "Cancelled trade #" +
-                        tradeToCancelDueToTotalLimit.id +
-                        " due to overload in total trade requests"
-                );
-                tradeToCancelDueToTotalLimit.cancel();
+                self.emit("debug", `Cancelled trade #${tradeToCancelDueToTotalLimit.id} due to overload in total trade requests`);
+                await tradeToCancelDueToTotalLimit.cancel();
             }
+
             self.emit("createdOffer", sid);
             self.emit("debug", "Created trade offer");
             return callback(null, self.trade.createOffer(sid, token));
-        });
+        } catch (err) {
+            return callback(err);
+        }
     } else {
         self.emit("debug", "Created trade offer");
         self.emit("createdOffer", sid);
